@@ -1,0 +1,30 @@
+{
+ "job_u03": [
+  {
+   "id": "rli_1",
+   "name": "Tree Removal",
+   "kind": "labor",
+   "amount": 700000
+  },
+  {
+   "id": "rli_2",
+   "name": "Tree Trimming",
+   "kind": "labor",
+   "amount": 162300
+  },
+  {
+   "id": "rli_3",
+   "name": "Stump Grinding",
+   "kind": "labor",
+   "amount": 205200
+  }
+ ],
+ "job_u13": [
+  {
+   "id": "rli_4",
+   "name": "Stump Grinding",
+   "kind": "labor",
+   "amount": 30600
+  }
+ ]
+}

@@ -9,6 +9,7 @@ import { mockModel } from "eve/evals";
  *   fixture:set <json>      → call config__set with the JSON as input
  *   fixture:get <family>    → call config__get
  *   fixture:history <family> → call config__history
+ *   fixture:tool <name> <json> → call any authored tool with the JSON as input
  * Anything else echoes the last user message. After any tool result it replies "Done: …".
  *
  * `userMessages` excludes framework scaffolding, so recalled memory is read off
@@ -20,7 +21,7 @@ const fixture = mockModel(({ lastUserMessage, messages, toolResults }) => {
   const lastMessage = messages[messages.length - 1];
   if (lastMessage?.role === "tool" && toolResults.length > 0) {
     const last = toolResults[toolResults.length - 1]!;
-    return `Done: ${JSON.stringify(last)}`.slice(0, 4000);
+    return `Done: ${JSON.stringify(last)}`.slice(0, 60000);
   }
   const msg = lastUserMessage ?? "";
   if (msg === "fixture:echo") {
@@ -29,6 +30,13 @@ const fixture = mockModel(({ lastUserMessage, messages, toolResults }) => {
   }
   if (msg.startsWith("fixture:set ")) {
     return { toolCalls: [{ name: "config__set", input: JSON.parse(msg.slice("fixture:set ".length)) as unknown }] };
+  }
+  if (msg.startsWith("fixture:tool ")) {
+    const rest = msg.slice("fixture:tool ".length).trim();
+    const space = rest.indexOf(" ");
+    const name = space === -1 ? rest : rest.slice(0, space);
+    const input = space === -1 ? {} : (JSON.parse(rest.slice(space + 1)) as unknown);
+    return { toolCalls: [{ name, input }] };
   }
   if (msg.startsWith("fixture:history ")) {
     return { toolCalls: [{ name: "config__history", input: { family: msg.slice("fixture:history ".length).trim() } }] };

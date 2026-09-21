@@ -1,4 +1,7 @@
 import { defineEvalConfig } from "eve/evals";
 
-// Deterministic evals only in phase 1 (fixture model, no judge). Run with EVE_FIXTURE=1.
-export default defineEvalConfig({});
+// The judge is never the agent under test. Deterministic evals (fixture model)
+// do not use it; the live judgment evals in evals/live/ do.
+export default defineEvalConfig({
+  judge: { model: "anthropic/claude-sonnet-5" },
+});
