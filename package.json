@@ -12,20 +12,25 @@
     "dev": "eve dev",
     "eval": "eve eval",
     "start": "eve start",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "eval:fixture": "EVE_FIXTURE=1 eve eval --agent scheduling",
+    "eval:pglite": "EVE_FIXTURE=1 CONFIG_STORE=pglite eve eval --agent scheduling",
+    "test": "tsx --test agents/scheduling/tests/*.test.ts"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@vercel/connect": "2.2.0",
     "ai": "^7.0.105",
     "eve": "^0.63.0",
     "zod": "4.5.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/node": "24.x",
+    "tsx": "^4.23.15",
     "typescript": "7.0.2"
   },
   "engines": {
     "node": "24.x"
   }
-
 }
