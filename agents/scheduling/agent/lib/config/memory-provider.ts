@@ -7,7 +7,7 @@
  * accumulating beside it. That is the "push, not pull" property: the model
  * never has to remember to look the rules up.
  *
- * The tools close over the locked scope for the turn (eve's contract), so the
+ * The provider exposes list / get / history / set. The tools close over the locked scope for the turn (eve's contract), so the
  * model cannot redirect them. Writes validate against the family schema and
  * carry the caller's principal as set_by.
  */
@@ -15,7 +15,7 @@ import { defineMemoryProvider } from "eve/memory";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { FAMILIES, familyEnum, type ConfigRecord } from "./schema";
-import type { ConfigStore } from "./store";
+import { uuidFromKey, type ConfigStore } from "./store";
 
 function render(record: ConfigRecord): string {
   const who = record.set_by.startsWith("seed:") ? "seed" : record.set_by;
@@ -69,6 +69,20 @@ export function configMemory(store: ConfigStore) {
             return r ? { ...summarize(r), value: r.value } : { family, value: null };
           },
         }),
+        history: defineTool({
+          description:
+            "Who changed one config family and when, newest first. Each entry carries set_by, set_at, " +
+            "evidence, the value at that time, and superseded_by (null for the current record).",
+          inputSchema: z.object({ family: familyEnum, limit: z.number().int().min(1).max(50).default(10) }),
+          async execute({ family, limit }) {
+            const rows = await store.history(family);
+            return {
+              family,
+              count: rows.length,
+              entries: rows.slice(0, limit).map((r) => ({ ...summarize(r), superseded_by: r.superseded_by ?? null, value: r.value })),
+            };
+          },
+        }),
         set: defineTool({
           description:
             "Replace the current value of one config family with a complete new value. " +
@@ -80,8 +94,13 @@ export function configMemory(store: ConfigStore) {
             value: z.unknown(),
             evidence: z.string().min(1).optional(),
           }),
-          async execute({ family, value, evidence }) {
-            const record = await store.set({ family, value, set_by: principal, ...(evidence ? { evidence } : {}) });
+          async execute({ family, value, evidence }, call) {
+            // The record id is derived from session + turn + tool call id: if eve
+            // re-runs this step after an interruption, the second write is a no-op.
+            // (Call ids alone are not unique across sessions — the eval fixture's
+            // collide — so the key carries the session and turn as well.)
+            const id = uuidFromKey(`config__set:${call.session.id}:${call.session.turn.id}:${call.callId}`);
+            const record = await store.set({ id, family, value, set_by: principal, ...(evidence ? { evidence } : {}) });
             return { ok: true, ...summarize(record) };
           },
         }),

@@ -8,6 +8,7 @@ import { mockModel } from "eve/evals";
  *   fixture:echo            → reply with every user-role message in context (recalled memory included)
  *   fixture:set <json>      → call config__set with the JSON as input
  *   fixture:get <family>    → call config__get
+ *   fixture:history <family> → call config__history
  * Anything else echoes the last user message. After any tool result it replies "Done: …".
  *
  * `userMessages` excludes framework scaffolding, so recalled memory is read off
@@ -28,6 +29,9 @@ const fixture = mockModel(({ lastUserMessage, messages, toolResults }) => {
   }
   if (msg.startsWith("fixture:set ")) {
     return { toolCalls: [{ name: "config__set", input: JSON.parse(msg.slice("fixture:set ".length)) as unknown }] };
+  }
+  if (msg.startsWith("fixture:history ")) {
+    return { toolCalls: [{ name: "config__history", input: { family: msg.slice("fixture:history ".length).trim() } }] };
   }
   if (msg.startsWith("fixture:get ")) {
     return { toolCalls: [{ name: "config__get", input: { family: msg.slice("fixture:get ".length).trim() } }] };
