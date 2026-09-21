@@ -37,9 +37,39 @@ function summarize(record: ConfigRecord) {
   };
 }
 
+/**
+ * The principal a config write is recorded against. Throws rather than
+ * falling back: a rule must never be recorded as set by "unknown", and the
+ * app principal a schedule runs as (eve:app) is not an editor.
+ */
+export function requireEditor(auth: { principalId: string; principalType: string } | null | undefined): string {
+  if (!auth?.principalId) throw new Error("config edits need an authenticated caller; none is present on this turn.");
+  if (auth.principalType === "runtime" || auth.principalId === "eve:app") {
+    throw new Error("config edits need a person; this turn is running as the app principal.");
+  }
+  return auth.principalId;
+}
+
+/** One retry with a short pause — a Neon cold start after idle can fail the first query. */
+async function withOneRetry<T>(op: () => Promise<T>): Promise<T> {
+  try {
+    return await op();
+  } catch (first) {
+    await new Promise((r) => setTimeout(r, 750));
+    try {
+      return await op();
+    } catch {
+      throw first;
+    }
+  }
+}
+
 export function configMemory(store: ConfigStore) {
   const recall = async () => {
-    const records = await store.currentAll();
+    // A throwing recall fails the whole turn before the model runs, so the one
+    // query behind every turn gets one retry. Beyond that it fails closed: no
+    // rules is worse than no answer (plan §13 D3).
+    const records = await withOneRetry(() => store.currentAll());
     return {
       messages: records.map((r) => ({ id: `config:${r.family}`, content: render(r) })),
     };
@@ -51,7 +81,7 @@ export function configMemory(store: ConfigStore) {
       "compaction.completed": recall,
     },
     async tools(ctx) {
-      const principal = ctx.session.auth.current?.principalId ?? "unknown";
+      const auth = ctx.session.auth.current;
       return {
         list: defineTool({
           description: "List every config family with who set it and when. Use before editing.",
@@ -84,6 +114,7 @@ export function configMemory(store: ConfigStore) {
           },
         }),
         set: defineTool({
+          availableInSubagents: false,
           description:
             "Replace the current value of one config family with a complete new value. " +
             "Read it first with get, change only what the person asked, and pass the whole value back. " +
@@ -99,6 +130,7 @@ export function configMemory(store: ConfigStore) {
             // re-runs this step after an interruption, the second write is a no-op.
             // (Call ids alone are not unique across sessions — the eval fixture's
             // collide — so the key carries the session and turn as well.)
+            const principal = requireEditor(auth);
             const id = uuidFromKey(`config__set:${call.session.id}:${call.session.turn.id}:${call.callId}`);
             const record = await store.set({ id, family, value, set_by: principal, ...(evidence ? { evidence } : {}) });
             return { ok: true, ...summarize(record) };

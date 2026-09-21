@@ -76,3 +76,26 @@ describe("uuidFromKey", () => {
     assert.match(a, /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   });
 });
+
+describe("selectedBackend / requireEditor", async () => {
+  const { selectedBackend } = await import("../agent/lib/config/index");
+  const { requireEditor } = await import("../agent/lib/config/memory-provider");
+
+  it("opens Neon only on the production deployment unless told otherwise", () => {
+    assert.equal(selectedBackend({}), "memory");
+    assert.equal(selectedBackend({ DATABASE_URL: "postgres://x" }), "memory"); // local env pull
+    assert.equal(selectedBackend({ DATABASE_URL: "postgres://x", VERCEL_ENV: "preview" }), "memory");
+    assert.equal(selectedBackend({ DATABASE_URL: "postgres://x", VERCEL_ENV: "production" }), "neon");
+    assert.equal(selectedBackend({ DATABASE_URL: "postgres://x", VERCEL_ENV: "preview", CONFIG_STORE: "neon" }), "neon");
+    assert.equal(selectedBackend({ CONFIG_STORE: "pglite" }), "pglite");
+    assert.throws(() => selectedBackend({ CONFIG_STORE: "sqlite" }));
+  });
+
+  it("refuses a write with no person behind it", () => {
+    assert.equal(requireEditor({ principalId: "elizabeth@arbor-mgmt.com", principalType: "user" }), "elizabeth@arbor-mgmt.com");
+    assert.throws(() => requireEditor(null));
+    assert.throws(() => requireEditor(undefined));
+    assert.throws(() => requireEditor({ principalId: "", principalType: "user" }));
+    assert.throws(() => requireEditor({ principalId: "eve:app", principalType: "runtime" }));
+  });
+});

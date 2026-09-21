@@ -2,10 +2,6 @@
   "name": "arbor-agents",
   "version": "0.0.0",
   "type": "module",
-  "imports": {
-    "#*": "./agent/*",
-    "#evals/*": "./evals/*"
-  },
   "scripts": {
     "build": "eve build",
     "deploy": "eve deploy",
@@ -15,7 +11,9 @@
     "typecheck": "tsc",
     "eval:fixture": "EVE_FIXTURE=1 eve eval --agent scheduling",
     "eval:pglite": "EVE_FIXTURE=1 CONFIG_STORE=pglite eve eval --agent scheduling",
-    "test": "tsx --test agents/scheduling/tests/*.test.ts"
+    "test": "tsx --test agents/scheduling/tests/*.test.ts",
+    "info": "eve info --agent scheduling",
+    "ci": "npm run typecheck && npm run info && npm test && npm run eval:pglite -- --strict --junit .eve/junit.xml"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
