@@ -6,8 +6,11 @@
  *   CONFIG_STORE=pglite  In-process Postgres (WASM); evals and local runs.
  *   CONFIG_STORE=memory  Process-local; phase 1 behaviour.
  *
- * Unset: neon when DATABASE_URL is present, memory otherwise — so the deployed
- * agent is durable without a second setting and a bare local run still works.
+ * Unset: neon ONLY on the Vercel production deployment (VERCEL_ENV=production)
+ * with DATABASE_URL present; memory everywhere else. The Neon integration
+ * injects DATABASE_URL into preview deployments too, and a pull-request
+ * preview must never seed or edit the office's real rules. A deliberate run
+ * against production from elsewhere says CONFIG_STORE=neon explicitly.
  * The seed is written the first time an empty store is opened.
  */
 import { PostgresConfigStore } from "./postgres-store";
@@ -20,7 +23,10 @@ export function selectedBackend(env: NodeJS.ProcessEnv = process.env): ConfigBac
   const explicit = env.CONFIG_STORE;
   if (explicit === "neon" || explicit === "pglite" || explicit === "memory") return explicit;
   if (explicit) throw new Error(`CONFIG_STORE=${explicit} is not one of neon | pglite | memory.`);
-  return env.DATABASE_URL ? "neon" : "memory";
+  if (!env.DATABASE_URL) return "memory";
+  if (env.VERCEL_ENV === "production") return "neon";
+  console.warn(`[config] DATABASE_URL is set but VERCEL_ENV=${env.VERCEL_ENV ?? "(unset)"} — refusing the production database; using memory. Set CONFIG_STORE=neon to override deliberately.`);
+  return "memory";
 }
 
 async function open(backend: ConfigBackend): Promise<ConfigStore> {

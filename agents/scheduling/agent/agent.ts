@@ -43,6 +43,11 @@ const isFixture = process.env.EVE_FIXTURE === "1";
 
 export default defineAgent({
   model: isFixture ? fixture : "anthropic/claude-opus-5",
+  // No optional built-in tools. The model gets exactly what agent/tools/ and
+  // the memory providers declare: no shell, no filesystem, no web, and no
+  // built-in subagent delegation (a copy of this agent with no authenticated
+  // caller). ask_question and load_skill are re-added explicitly in tools/.
+  defaultTools: false,
   // The fixture is not in the AI Gateway catalog, so eve cannot look up its
   // context window and compaction would fail to compile. Declare one for the
   // fixture only; the real model's window is resolved from the gateway.

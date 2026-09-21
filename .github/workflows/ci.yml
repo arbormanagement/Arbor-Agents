@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    # This job name is what Vercel Deployment Checks waits on before promoting a build.
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run info
+      - run: npm test
+      # Evals run on the deterministic fixture model against PGlite, a real
+      # Postgres engine in-process: no gateway key, no database credential.
+      - run: npm run eval:pglite -- --strict --junit .eve/junit.xml
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-junit
+          path: .eve/junit.xml
+          if-no-files-found: ignore
