@@ -1,0 +1,97 @@
+[
+ {
+  "id": "evt_1",
+  "name": "Luke - OFF",
+  "recurrence_rule": "COUNT=6;FREQ=DAILY;INTERVAL=1;WKST=SU",
+  "start": "2026-09-24T13:00:00Z",
+  "end": "2026-09-24T13:30:00Z",
+  "all_day": false,
+  "employees": [
+   "Luke"
+  ]
+ },
+ {
+  "id": "evt_2",
+  "name": "James - OFF",
+  "recurrence_rule": "COUNT=2;FREQ=DAILY",
+  "start": "2026-09-28T13:00:00Z",
+  "end": "2026-09-28T13:30:00Z",
+  "all_day": false,
+  "employees": [
+   "James"
+  ]
+ },
+ {
+  "id": "evt_3",
+  "name": "Ethan OFF",
+  "recurrence_rule": "FREQ=DAILY;UNTIL=20261002T050000Z",
+  "start": "2026-09-30T13:00:00Z",
+  "end": "2026-09-30T13:30:00Z",
+  "all_day": false,
+  "employees": [
+   "Ethan"
+  ]
+ },
+ {
+  "id": "evt_4",
+  "name": "Nic - Available",
+  "recurrence_rule": null,
+  "start": "2026-09-29T13:00:00Z",
+  "end": "2026-09-29T14:00:00Z",
+  "all_day": false,
+  "employees": [
+   "Nic"
+  ]
+ },
+ {
+  "id": "evt_5",
+  "name": "BIDS",
+  "recurrence_rule": null,
+  "start": "2026-09-29T15:00:00Z",
+  "end": "2026-09-29T16:00:00Z",
+  "all_day": false,
+  "employees": [
+   "Matt"
+  ]
+ },
+ {
+  "id": "evt_6",
+  "name": "Elijah - OFF",
+  "recurrence_rule": "COUNT=5;FREQ=DAILY",
+  "start": "2026-10-05T13:00:00Z",
+  "end": "2026-10-05T13:30:00Z",
+  "all_day": false,
+  "employees": [
+   "Elijah"
+  ]
+ },
+ {
+  "id": "evt_7",
+  "name": "Adam - Sick",
+  "recurrence_rule": null,
+  "start": "2026-09-17T13:00:00Z",
+  "end": "2026-09-17T13:30:00Z",
+  "all_day": false,
+  "employees": [
+   "Adam"
+  ]
+ },
+ {
+  "id": "evt_8",
+  "name": "Nic & Eli OFF",
+  "recurrence_rule": null,
+  "start": "2026-10-01T13:00:00Z",
+  "end": "2026-10-01T13:30:00Z",
+  "all_day": false,
+  "employees": []
+ },
+ {
+  "id": "evt_9",
+  "name": "CLOSED - HOLIDAY",
+  "recurrence_rule": null,
+  "start": "2026-11-26T13:00:00Z",
+  "end": "2026-11-26T13:30:00Z",
+  "all_day": true,
+  "employees": []
+ }
+]

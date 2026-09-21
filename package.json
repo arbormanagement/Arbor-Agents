@@ -16,6 +16,7 @@
     "ci": "npm run typecheck && npm run info && npm test && npm run eval:pglite -- --strict --junit .eve/junit.xml"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/connect": "2.2.0",
     "ai": "^7.0.105",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@types/node": "24.x",
+    "just-bash": "^3.4.2",
     "tsx": "^4.23.15",
     "typescript": "7.0.2"
   },
