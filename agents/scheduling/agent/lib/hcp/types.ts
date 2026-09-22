@@ -57,9 +57,31 @@ export interface JobsFilter {
   scheduled_start_max?: string;
 }
 
+export interface ScheduleWrite {
+  job_id: string;
+  scheduled_start: string; // ISO with offset
+  scheduled_end: string;
+  arrival_window_minutes?: number;
+  employee_ids?: string[];
+  /** Customer text. Hard-coded false by write_schedule; true only from notify_customer. */
+  notify: boolean;
+  notify_pro: boolean;
+}
+
+export interface ScheduleWriteResult {
+  id: string;
+  start: string | null;
+  end: string | null;
+  employees: string[];
+}
+
 export interface HcpSource {
   /** All matching jobs, every page. */
   jobs(filter: JobsFilter): Promise<HcpJob[]>;
+  /** One job by id, or null. */
+  job(id: string): Promise<HcpJob | null>;
+  /** THE schedule write. Everything the agent ever changes in HCP goes through here. */
+  updateJobSchedule(input: ScheduleWrite): Promise<ScheduleWriteResult>;
   /** Every calendar event, every page — the endpoint has no date filter. */
   events(): Promise<HcpEvent[]>;
   lineItems(jobId: string): Promise<HcpLineItem[]>;

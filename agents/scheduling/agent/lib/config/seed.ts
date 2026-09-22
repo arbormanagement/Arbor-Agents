@@ -183,4 +183,9 @@ export const seed: { [F in Family]: FamilyValue<F> } = {
   site_notes: { notes: [] },
 
   known_one_day: { jobs: [] },
+
+  write_policy: {
+    notify_pro_on_schedule: false,
+    note: "The customer text (notify) is never a setting — write_schedule hard-codes it off and only notify_customer sends it. notify_pro is the crew text; off while boards are tentative (the office UI has no such switch, the API does).",
+  },
 };

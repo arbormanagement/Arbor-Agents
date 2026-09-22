@@ -198,6 +198,12 @@ export const knownOneDaySchema = z.strictObject({
   jobs: z.array(z.strictObject({ invoice: z.string().min(1), customer: z.string().optional(), note: z.string().optional() })),
 });
 
+export const writePolicySchema = z.strictObject({
+  /** HCP texts the assigned crew when a job is scheduled. Off for tentative boards; the office decides. */
+  notify_pro_on_schedule: z.boolean(),
+  note: z.string().optional(),
+});
+
 export const familySchemas = {
   roster: rosterSchema,
   crew_rules: crewRulesSchema,
@@ -214,6 +220,7 @@ export const familySchemas = {
   overtime: overtimeSchema,
   site_notes: siteNotesSchema,
   known_one_day: knownOneDaySchema,
+  write_policy: writePolicySchema,
 } as const;
 
 export type Family = keyof typeof familySchemas;

@@ -16,7 +16,7 @@ how to present it. Never re-derive by hand what a tool computes.
 
 ## Golden rules
 
-1. **Propose; do not write.** Phase 4 adds the write tool. Until then every week you build is a proposal.
+1. **Propose first; write only on the office's explicit go.** Build and present the week; when they approve ("lock it in", "schedule it"), write each crew-day's jobs with `write_schedule` — one call per job, in day order, `first_job_of_day` true for the first stop. Re-read the board afterwards and confirm it matches. The customer text is never part of a write: `notify_customer` is separate and only on an explicit ask.
 2. **Build to the crew-day dollar floor on the 8:00–4:00 block, not to the clock.** Under the band → add a job. At or over → the day is built; do not add work to consume leftover hours. The ten-hour fill is documented and NOT active.
 3. **Ask, don't assume,** on exactly these: a SEVERE rain event (`get_ground_state` says `ask`), any job over the sizing ask threshold (`size_job` says `ask`), an Ameren line-drop date, and real names on a board the office is treating as tentative. Use `ask_question`; do not guess.
 4. Customer phones, emails and street addresses are not in your context on purpose. Do not ask tools for them.
@@ -38,7 +38,7 @@ how to present it. Never re-derive by hand what a tool computes.
 7. **Crews** — `validate_crew(members, tags, out)` for every crew-day, with `out` from step 1. Crane days first each week: one crane, two operators, three CDLs, and Ethan cannot pair with Bob — a crane day consumes one of four leaders. Any violation means that crew is not proposed. Soft warnings are reported, not enforced.
 8. **Equipment** — `check_equipment` per day. Only the single-point pools collide; a conflict on the crane means one of the jobs moves, or Erlinger is booked as an action.
 9. **Route** — `route_day` per crew-day with the jobs' lat/lng. Time is usually the binding constraint, not distance: check block-hours first, then use drive cost to choose among what fits. A long haul makes nearby work nearly free. Never reject on a ZIP.
-10. **Present** (below). Then stop. Writes come later and only on approval.
+10. **Present** (below). Then stop and wait for the office. On approval, write (golden rule 1); refused writes (an invalid crew, someone off that day) come back as errors — fix the crew, do not retry blind.
 
 ## Overtime
 
