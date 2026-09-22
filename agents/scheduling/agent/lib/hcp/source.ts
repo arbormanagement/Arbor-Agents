@@ -38,8 +38,63 @@ const EVENT_PROJECTION =
 const LINE_ITEM_PROJECTION = "data[*].{id: id, name: name, kind: kind, amount: amount}";
 const EMPLOYEE_PROJECTION = "employees[*].{id: id, first_name: first_name, last_name: last_name, role: role}";
 
-const PAGE_SIZE = 200;
-const MAX_PAGES = 25;
+/**
+ * Page sizes are per tool because the MCP trims any result over 50,000
+ * characters at a record boundary: a projected job is ~750 chars pretty-printed,
+ * an event ~290 (measured live 2026-09-22), so 200 jobs never fit. A walk that
+ * still overflows restarts with half the page (down to MIN_PAGE) rather than
+ * failing — descriptions grow.
+ */
+const PAGE_SIZES: Record<ReadTool, number> = {
+  housecallpro_get_jobs: 50,
+  housecallpro_get_job: 1,
+  housecallpro_list_events: 100,
+  housecallpro_get_job_line_items: 200,
+  housecallpro_list_employees: 200,
+};
+const MIN_PAGE = 10;
+/** Hard ceiling on rows per walk, whatever the page size lands at. */
+const MAX_ROWS = 5000;
+
+/** The MCP answered isError with a plain-text reason: a scope refusal, an unknown tool, or an upstream HTTP failure. */
+export class McpToolError extends Error {
+  constructor(tool: string, readonly detail: string) {
+    super(`${tool}: ${detail}`);
+    this.name = "McpToolError";
+  }
+  /** HousecallPro's "404 Not Found — Job not found" — the id does not exist. */
+  get notFound(): boolean {
+    return /\b404\b|not found/i.test(this.detail);
+  }
+}
+
+/** The MCP dropped records to fit its output budget; the caller retries with a smaller page. */
+export class McpTruncated extends Error {
+  constructor(tool: string) {
+    super(`${tool}: MCP result truncated — page smaller or project fewer fields`);
+    this.name = "McpTruncated";
+  }
+}
+
+/**
+ * Turn one execute_tool text result into the payload. The MCP attaches a
+ * `_meta` block for three reasons and the shape differs by reason:
+ *   - error (invalid _query, upstream failure)      → `{ _meta: { error } }`        → throw
+ *   - truncated (records dropped to fit the budget) → `{ _meta: { truncated } , data }` → throw McpTruncated
+ *   - warning (e.g. all_null_projection_keys: every unscheduled job has a null
+ *     `start`/`end`, which is exactly the backlog)  → `{ _meta: { warning }, data }` → unwrap `data`
+ * Missing the third case returned an empty backlog on the first live run (2026-09-22).
+ */
+export function parseMcpResult(tool: string, text: string | undefined): unknown {
+  if (!text) throw new Error(`${tool}: empty MCP result`);
+  const parsed = JSON.parse(text) as unknown;
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return parsed;
+  const { _meta: meta, data } = parsed as { _meta?: { error?: string; truncated?: boolean; warning?: string }; data?: unknown };
+  if (!meta) return parsed;
+  if (meta.error) throw new Error(`${tool}: MCP error ${meta.error}`);
+  if (meta.truncated) throw new McpTruncated(tool);
+  return "data" in (parsed as object) ? data : parsed;
+}
 
 export type HcpBackend = "mcp" | "fixture";
 
@@ -69,33 +124,49 @@ export async function connectArborMcp(opts: { url: string; token: string; allow:
     async call(tool, args) {
       if (!opts.allow.includes(tool)) throw new Error(`${tool} is not allowed on this MCP client`);
       const res = await client.callTool({ name: "execute_tool", arguments: { tool, arguments: args } });
-      const content = (res as { content?: Array<{ type: string; text?: string }> }).content ?? [];
+      const { content = [], isError } = res as { content?: Array<{ type: string; text?: string }>; isError?: boolean };
       const text = content.find((c) => c.type === "text")?.text;
-      if (!text) throw new Error(`${tool}: empty MCP result`);
-      const parsed = JSON.parse(text) as unknown;
-      const meta = (parsed as { _meta?: { error?: string; truncated?: boolean } })._meta;
-      if (meta?.error) throw new Error(`${tool}: MCP error ${meta.error}`);
-      if (meta?.truncated) throw new Error(`${tool}: MCP result truncated — page smaller or project fewer fields`);
-      return parsed;
+      // A scope refusal or an unknown tool comes back as isError with a plain-text reason, not JSON.
+      if (isError) throw new McpToolError(tool, text ?? "MCP error");
+      return parseMcpResult(tool, text);
     },
   };
 }
 
 /** `writer` may be a separate client with a write-scoped token; it defaults to the reader. */
 export function mcpSource(mcp: McpCaller, writer: McpCaller = mcp): HcpSource {
-  async function paged<T>(tool: ReadTool, base: Record<string, unknown>, sizeKey: "page_size" | "per_page"): Promise<T[]> {
+  async function walk<T>(tool: ReadTool, base: Record<string, unknown>, sizeKey: "page_size" | "per_page", size: number): Promise<T[]> {
     const out: T[] = [];
-    for (let page = 1; page <= MAX_PAGES; page++) {
-      const rows = (await mcp.call(tool, { ...base, page, [sizeKey]: PAGE_SIZE })) as T[] | null;
+    const maxPages = Math.ceil(MAX_ROWS / size);
+    for (let page = 1; page <= maxPages; page++) {
+      const rows = (await mcp.call(tool, { ...base, page, [sizeKey]: size })) as T[] | null;
       if (!Array.isArray(rows)) break;
       out.push(...rows);
-      if (rows.length < PAGE_SIZE) break; // an empty or short page ends the walk only when nothing is filtered server-side
+      if (rows.length < size) break; // an empty or short page ends the walk only when nothing is filtered server-side
     }
     return out;
   }
+  async function paged<T>(tool: ReadTool, base: Record<string, unknown>, sizeKey: "page_size" | "per_page"): Promise<T[]> {
+    let size = PAGE_SIZES[tool];
+    for (;;) {
+      try {
+        return await walk<T>(tool, base, sizeKey, size);
+      } catch (err) {
+        if (!(err instanceof McpTruncated) || size <= MIN_PAGE) throw err;
+        size = Math.max(MIN_PAGE, Math.floor(size / 2)); // restart from page 1: page numbers shift with the size
+      }
+    }
+  }
   return {
     jobs: (filter: JobsFilter) => paged<HcpJob>("housecallpro_get_jobs", { ...filter, _query: JOB_PROJECTION }, "page_size"),
-    job: async (id) => ((await mcp.call("housecallpro_get_job", { id, _query: JOB_FIELDS })) as HcpJob | null) ?? null,
+    job: async (id) => {
+      try {
+        return ((await mcp.call("housecallpro_get_job", { id, _query: JOB_FIELDS })) as HcpJob | null) ?? null;
+      } catch (err) {
+        if (err instanceof McpToolError && err.notFound) return null; // HCP 404 — the interface promises null, not a throw
+        throw err;
+      }
+    },
     updateJobSchedule: async (input: ScheduleWrite) =>
       (await writer.call("housecallpro_update_job_schedule", { ...input, _query: WRITE_PROJECTION })) as ScheduleWriteResult,
     events: () => paged<HcpEvent>("housecallpro_list_events", { _query: EVENT_PROJECTION }, "page_size"),
