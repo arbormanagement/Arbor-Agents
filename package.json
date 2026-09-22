@@ -16,10 +16,14 @@
     "ci": "npm run typecheck && npm run info && npm test && npm run eval:pglite -- --strict --junit .eve/junit.xml"
   },
   "dependencies": {
+    "@chat-adapter/gchat": "^4.41.0",
+    "@chat-adapter/state-memory": "^4.41.0",
+    "@chat-adapter/state-pg": "^4.41.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/connect": "2.2.0",
     "ai": "^7.0.105",
+    "chat": "^4.41.0",
     "eve": "^0.63.0",
     "zod": "4.5.4"
   },
