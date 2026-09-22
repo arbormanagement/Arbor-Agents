@@ -92,10 +92,17 @@ describe("selectedBackend / requireEditor", async () => {
   });
 
   it("refuses a write with no person behind it", () => {
-    assert.equal(requireEditor({ principalId: "elizabeth@arbor-mgmt.com", principalType: "user" }), "elizabeth@arbor-mgmt.com");
-    assert.throws(() => requireEditor(null));
-    assert.throws(() => requireEditor(undefined));
-    assert.throws(() => requireEditor({ principalId: "", principalType: "user" }));
-    assert.throws(() => requireEditor({ principalId: "eve:app", principalType: "runtime" }));
+    const dev = { EVE_DEV: "1" } as NodeJS.ProcessEnv;
+    const prod = {} as NodeJS.ProcessEnv;
+    const ctx = (principalId: string, principalType = "user", authenticator = "gchat") => ({ principalId, principalType, authenticator, attributes: {} });
+    assert.equal(requireEditor(ctx("elizabeth@arbor-mgmt.com"), prod), "elizabeth@arbor-mgmt.com");
+    assert.equal(requireEditor(ctx("Justin@Arbor-Mgmt.com"), prod), "justin@arbor-mgmt.com");
+    assert.equal(requireEditor(ctx("local-dev"), dev), "local-dev"); // eve dev only
+    assert.throws(() => requireEditor(ctx("local-dev"), prod)); // the same principal id on a deployment is nobody
+    assert.throws(() => requireEditor(null, prod));
+    assert.throws(() => requireEditor(ctx("", "user"), prod));
+    assert.throws(() => requireEditor(ctx("eve:app", "runtime", "app"), prod));
+    assert.throws(() => requireEditor(ctx("someone@arbor-mgmt.com"), prod)); // same domain is not enough
+    assert.throws(() => requireEditor(ctx("owner:arbor-managment:project:arbor-agents:environment:production", "service", "oidc"), prod));
   });
 });

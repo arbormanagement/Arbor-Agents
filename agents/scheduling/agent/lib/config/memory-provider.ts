@@ -15,6 +15,7 @@ import { defineMemoryProvider } from "eve/memory";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { FAMILIES, familyEnum, type ConfigRecord } from "./schema";
+import { requirePerson, type AuthContext } from "../auth/people";
 import { uuidFromKey, type ConfigStore } from "./store";
 
 function render(record: ConfigRecord): string {
@@ -38,16 +39,12 @@ function summarize(record: ConfigRecord) {
 }
 
 /**
- * The principal a config write is recorded against. Throws rather than
- * falling back: a rule must never be recorded as set by "unknown", and the
- * app principal a schedule runs as (eve:app) is not an editor.
+ * The principal a config write is recorded against: an allowlisted person
+ * (or the local dev principal). Throws otherwise — a rule is never recorded
+ * as set by "unknown", by the app principal, or by an OIDC service caller.
  */
-export function requireEditor(auth: { principalId: string; principalType: string } | null | undefined): string {
-  if (!auth?.principalId) throw new Error("config edits need an authenticated caller; none is present on this turn.");
-  if (auth.principalType === "runtime" || auth.principalId === "eve:app") {
-    throw new Error("config edits need a person; this turn is running as the app principal.");
-  }
-  return auth.principalId;
+export function requireEditor(auth: AuthContext | null | undefined, env: NodeJS.ProcessEnv = process.env): string {
+  return requirePerson(auth, env).id;
 }
 
 /** One retry with a short pause — a Neon cold start after idle can fail the first query. */
